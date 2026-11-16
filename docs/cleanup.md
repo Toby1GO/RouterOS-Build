@@ -1,7 +1,7 @@
 # 清理记录（2026-11-16）
 
 已删除可重新构建的 `.diag-build`、`dist`、解压版 `RouterOSKeygen-v3` 和缓存。
-原便携 ZIP 保留在 `releases-local/`。少数 Windows 临时目录权限异常，保留并忽略，不影响源码和构建。
+原便携 ZIP 保留在 `releases-local/`。权限异常的旧诊断临时目录也已完成清理。
 
 原始镜像、输入/输出 NPK 移到 `.local-archive/originals/`。
 已测试版本镜像移到 `.local-archive/7.25.1/`。

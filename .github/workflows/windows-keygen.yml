@@ -21,8 +21,9 @@ jobs:
           LICENSE_PUBLIC: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
         shell: python
         run: |
-          import os
+          import os, sys
           from pathlib import Path
+          sys.path.insert(0, os.environ['GITHUB_WORKSPACE'])
           from license import hex_key, public_from_private
           private, public = (hex_key(os.environ[n]) for n in ('LICENSE_PRIVATE', 'LICENSE_PUBLIC'))
           assert public_from_private(private) == public
