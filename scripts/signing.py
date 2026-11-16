@@ -2,6 +2,7 @@
 import re
 from pathlib import Path
 from toyecc import ECPrivateKey, getcurvebyname
+DEFAULT_KEYS = Path(__file__).resolve().parents[1] / '.private' / 'signing.env'
 
 def read_keys(path):
     values = {}

@@ -27,6 +27,8 @@ def main():
     for mode in ('uefi','legacy-bios'):
         raw=out/f'chr-{ver}-{mode}.img'
         for ext,fmt in formats:
+            if (mode == 'uefi' and ext == 'vhd') or (mode == 'legacy-bios' and ext == 'vhdx'):
+                continue
             target=raw.with_suffix('.'+ext)
             command=['qemu-img','convert','-f','raw','-O',fmt]
             if fmt=='vpc':command+=['-o','force_size=on']

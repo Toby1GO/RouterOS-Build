@@ -9,7 +9,7 @@ import json
 import struct
 from pathlib import Path
 
-from license import read_keys, hex_key, DEFAULT_KEYS
+from scripts.signing import read_keys, hex_key, DEFAULT_KEYS
 from npk import NovaPackage
 
 
