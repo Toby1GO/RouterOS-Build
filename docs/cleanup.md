@@ -14,3 +14,7 @@
 
 验证：7.25.1 官方源包 EdDSA 验签；12 个自有签名 NPK；SquashFS 文件和元数据读回；ISO 布局及文件读回；安装 IMG 文件读回；内核 CRC；loader 入口寄存器、标志和栈的三个模拟场景。
 新构建未进行整机启动测试。旧第七版的用户实测记录仅作为历史材料，不代替新构建实测。
+
+进一步删除可重新生成的 TAR、SquashFS、NPK 和 vmlinux 中间文件约 1200.3 MiB，以及 build 缓存约 1081.2 MiB，共约 2.23 GiB。删除清单位于本地 `.local-archive/deleted-generated-files.json`。
+
+云端验证：固件 Actions 43821177264 成功，发布 routeros-7.25.1-43821177264-1；Windows Actions 43821543594 成功，便携 ZIP 自检通过。仓库可见性已核实为 PRIVATE。

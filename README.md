@@ -17,7 +17,7 @@
 ## Windows 生成器
 
 Actions → **Build Windows key generator** 可构建并自检便携 ZIP，从该次运行的 Artifacts 下载。
-完整解压后运行 EXE，不需要额外安装 Python。该包包含许可证私钥，可被提取；只提供给可信使用者。
+云端打包与独立自检已通过。完整解压后运行 EXE，不需要额外安装 Python。该包包含许可证私钥，可被提取；只提供给可信使用者。
 本地现成便携包保存在 `releases-local/`，不进入 Git 历史。参见 [便携版说明](README-portable.md)。
 
 ## 密钥
@@ -54,7 +54,7 @@ Windows 构建生成器：`python -m pip install -r requirements-build.txt`，�
 - 根目录 Python 文件：NPK、密码算法、授权生成器和现有底层工具。
 - `toyecc/`：上游椭圆曲线实现，保留其许可证头。
 - `docs/`：清理记录和已验证版本的说明。
-- `.local-archive/`、`analysis/`、`releases-local/`：仅本地保留的历史数据，不上传。
+- `.local-archive/`、`.local-tools/`、`releases-local/`：仅本地保留的历史数据，不上传。
 
 基于 [elseif/MikroTikPatch](https://github.com/elseif/MikroTikPatch) 和本地后续修改。
 根项目保留原 LICENSE；toyecc 文件头另有 GPLv3 条款，详见源文件。
