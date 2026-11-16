@@ -14,14 +14,14 @@ class NpkPartID(IntEnum):
     SIGNATURE               =0x09	# Package signature
     ARCHITECTURE            =0x10	# Package architecture (e.g. i386)
     PKG_CONFLICTS           =0x11	# Package conflicts
-    PKG_INFO                =0x12	
+    PKG_INFO                =0x12
     FEATURES                =0x13
-    PKG_FEATURES            =0x14	
-    SQUASHFS                =0x15	# SquashFS 
+    PKG_FEATURES            =0x14
+    SQUASHFS                =0x15	# SquashFS
     NULL_BLOCK              =0X16
     GIT_COMMIT              =0x17	# Git commit
     CHANNEL                 =0x18	# Release type (e.g. stable, testing, etc.)
-    HEADER                  =0x19	
+    HEADER                  =0x19
 
 @dataclass
 class NpkPartItem:
@@ -104,7 +104,7 @@ class NpkInfo:
             else:
                 build = ''
         else:
-            build = 'unknown'        
+            build = 'unknown'
         return f'{major}.{minor}{build + str(revision) if build !="" else "." + str(revision) if revision != 0 else ""}'
     @property
     def version(self)->str:
@@ -114,7 +114,7 @@ class NpkInfo:
         self._version = self.encode_version(value)
     @property
     def build_time(self):
-        return datetime.fromtimestamp(self._build_time) 
+        return datetime.fromtimestamp(self._build_time)
     @build_time.setter
     def build_time(self,value:datetime):
         self._build_time = int(value.timestamp())
@@ -156,7 +156,7 @@ class NpkFileContainer:
         compressed_data = b''
         compressor = zlib.compressobj(level=0)
         for item in self._items:
-            data = struct.pack(self._format, item.perm,item.type,item.usr_or_grp, item.modify_time,item.revision,item.rc,item.minor,item.major,item.create_time,item.unknow,len(item.data),len(item.name)) 
+            data = struct.pack(self._format, item.perm,item.type,item.usr_or_grp, item.modify_time,item.revision,item.rc,item.minor,item.major,item.create_time,item.unknow,len(item.data),len(item.name))
             data += item.name + item.data
             compressed_data += compressor.compress(data)
         return compressed_data + compressor.flush()
@@ -248,7 +248,7 @@ class NovaPackage(Package):
                 size += 6
                 size += len(part.data)
             return size
-           
+
         def set_null(package,offset):
             has_squashfs = False
             for part in package._parts:
@@ -271,7 +271,7 @@ class NovaPackage(Package):
         for package in self._packages:
             set_null(package,offset)
             offset += get_size(package,0)
-            
+
     def get_digest(self,hash_fnc,package:Package=None)->bytes:
         parts = package._parts if package else self._parts
         for part in parts:
@@ -287,8 +287,8 @@ class NovaPackage(Package):
                         hash_fnc.update(part.data)
                     else:
                         hash_fnc.update(part.data.serialize())
-        return hash_fnc.digest()    
-   
+        return hash_fnc.digest()
+
     def sign(self,kcdsa_private_key:bytes,eddsa_private_key:bytes,*,signature_only=False):
         import hashlib
         from mikro import mikro_kcdsa_sign,mikro_eddsa_sign
@@ -362,7 +362,7 @@ class NovaPackage(Package):
                 sha1_digest = self.get_digest(hashlib.new('SHA1'),package)
                 sha256_digest = self.get_digest(hashlib.new('SHA256'),package)
                 signature = package[NpkPartID.SIGNATURE].data
-                if sha1_digest != signature[:20]: 
+                if sha1_digest != signature[:20]:
                     return False
                 if not mikro_kcdsa_verify(sha1_digest,signature[20:68],kcdsa_public_key):
                     return False
@@ -372,14 +372,14 @@ class NovaPackage(Package):
             sha1_digest = self.get_digest(hashlib.new('SHA1'))
             sha256_digest = self.get_digest(hashlib.new('SHA256'))
             signature = self[NpkPartID.SIGNATURE].data
-            if sha1_digest != signature[:20]: 
+            if sha1_digest != signature[:20]:
                 return False
             if not mikro_kcdsa_verify(sha1_digest,signature[20:68],kcdsa_public_key):
                 return False
             if len(signature) == 132 and not mikro_eddsa_verify(sha256_digest,signature[68:132],eddsa_public_key):
                 return False
         return True
-            
+
     def save(self,file):
         size = 0
         for part in self._parts:
@@ -447,7 +447,7 @@ if __name__=='__main__':
     eddsa_private_key = bytes.fromhex(os.environ['CUSTOM_NPK_SIGN_PRIVATE_KEY'])
     kcdsa_public_key = bytes.fromhex(os.environ['CUSTOM_LICENSE_PUBLIC_KEY'])
     eddsa_public_key = bytes.fromhex(os.environ['CUSTOM_NPK_SIGN_PUBLIC_KEY'])
-    
+
     if args.command =='sign':
         print(f'Signing {args.input}')
         try:
@@ -471,11 +471,11 @@ if __name__=='__main__':
         option_npk[NpkPartID.NAME_INFO].data.name = args.name
         option_npk[NpkPartID.DESCRIPTION].data = args.description.encode() if args.description else args.name.encode()
         option_npk[NpkPartID.NULL_BLOCK].data = b''
-        option_npk[NpkPartID.SQUASHFS].data = open(args.squashfs,'rb').read() 
+        option_npk[NpkPartID.SQUASHFS].data = open(args.squashfs,'rb').read()
         option_npk.sign(kcdsa_private_key,eddsa_private_key)
         option_npk.save(args.output)
         print(f'Created {args.output}')
-    elif args.command =='extract':    
+    elif args.command =='extract':
         print(f'Extracting {args.name} from {args.input}')
         npk = NovaPackage.load(args.input)
         file_container = None
@@ -485,7 +485,7 @@ if __name__=='__main__':
                     file_container = NpkFileContainer.unserialize_from(package[NpkPartID.FILE_CONTAINER].data)
         else:
             if npk[NpkPartID.NAME_INFO].data.name == 'system':
-                file_container = NpkFileContainer.unserialize_from(npk[NpkPartID.FILE_CONTAINER].data)          
+                file_container = NpkFileContainer.unserialize_from(npk[NpkPartID.FILE_CONTAINER].data)
         if file_container:
             for item in file_container:
                 if item.name == args.name.encode():

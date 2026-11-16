@@ -51,4 +51,3 @@ def patch_loader(original, work):
         f'{ins.address:08x}: {ins.bytes.hex():24s} {ins.mnemonic} {ins.op_str}'
         for ins in Cs(CS_ARCH_X86, CS_MODE_32).disasm(code, address)), encoding='utf-8')
     return bytes(output)
-

@@ -54,6 +54,18 @@ jobs:
           CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
           CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
         run: python scripts/build_routeros.py --version "$VERSION"
+      - name: Emulate patched loader entry
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          python - <<'PY'
+          import os, tarfile
+          from pathlib import Path
+          path = Path('build/routeros') / os.environ['VERSION']
+          with tarfile.open(path / 'source.tar') as source:
+              (path / 'loader.original').write_bytes(source.extractfile('./nova/bin/loader').read())
+          PY
+          python tests/check_loader_entry.py "build/routeros/$VERSION/loader.original"
       - name: Upload verified release assets
         uses: actions/upload-artifact@v4
         with:
@@ -93,4 +105,5 @@ jobs:
           This installer IMG is not a CHR system disk. Activate using the existing matching key generator.
           NOTES
           tag="routeros-${VERSION}-${RUN_ID}-${RUN_ATTEMPT}"
-          gh release create "$tag" publish/* --target "$SOURCE_SHA" --title "RouterOS $VERSION (x86)" --notes-file notes.md
+          gh release create "$tag" publish/* --target "$SOURCE_SHA" --title "RouterOS $VERSION (x86)" --notes-file notes.md --draft
+          gh release edit "$tag" --draft=false

@@ -110,7 +110,7 @@ class ShortWeierstrassCurve(EllipticCurve, CurveOpIsomorphism, CurveOpExportSage
 		if self.is_koblitz:
 			name.append("(Koblitz)")
 		return " ".join(name)
-	
+
 	@property
 	def a(self):
 		"""Returns the coefficient a of the curve equation y^2 = x^3 + ax + b."""

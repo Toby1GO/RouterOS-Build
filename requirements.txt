@@ -2,3 +2,4 @@ pefile==2024.8.26
 pyelftools==0.33
 pycdlib==1.22.0
 capstone==5.0.9
+unicorn==2.1.4

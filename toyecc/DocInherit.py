@@ -31,7 +31,7 @@ def doc_inherit(superclass):
 			parent_method = getattr(superclass, method_name, None)
 			if parent_method is None:
 				raise Exception("Tried to inherit docstring of method '%s' from class '%s', but the latter does not offer a method by that name." % (method_name, str(superclass)))
-			docstr = parent_method.__doc__			
+			docstr = parent_method.__doc__
 			if docstr is None:
 				raise Exception("Tried to inherit docstring of method '%s' from class '%s', but that method also does not have a docstring." % (method_name, str(superclass)))
 			decoree.__doc__ = docstr

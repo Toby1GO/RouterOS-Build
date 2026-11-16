@@ -39,4 +39,3 @@ def update_root_file(image, name, payload):
         raise ValueError('Root entry not found')
     checked = Fat16Image(image)
     assert checked.read(next(f for f in checked.files if f['path']==name)) == payload
-

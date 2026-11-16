@@ -6,9 +6,9 @@ from npk import NovaPackage,NpkPartID,NpkFileContainer
 
 def replace_chunks(old_chunks,new_chunks,data,name,gap_size=8):
     pattern_parts = [re.escape(chunk) + f'(.{{0,{gap_size}}})'.encode() for chunk in old_chunks[:-1]]
-    pattern_parts.append(re.escape(old_chunks[-1])) 
+    pattern_parts.append(re.escape(old_chunks[-1]))
     pattern_bytes = b''.join(pattern_parts)
-    pattern = re.compile(pattern_bytes, flags=re.DOTALL) 
+    pattern = re.compile(pattern_bytes, flags=re.DOTALL)
     def replace_match(match):
         replaced = b''.join([new_chunks[i] + match.group(i+1) for i in range(len(new_chunks) - 1)])
         replaced += new_chunks[-1]
@@ -40,7 +40,7 @@ def replace_key(old,new,data,name=''):
         if old_bytes in data:
             print(f'{name} public key patched {old[:16].hex().upper()}...')
             data = data.replace(old_bytes,new_bytes)
-            old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1e400000+0xfd000+0x640  
+            old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1e400000+0xfd000+0x640
             new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]  #0xff0075fc= 0xff000000+0x7500+0xfc
             data =  replace_chunks(old_codes, new_codes, data,name)
         else:
@@ -65,7 +65,7 @@ def replace_key(old,new,data,name=''):
             if old_bytes in data:
                 print(f'{name} public key patched {old[:16].hex().upper()}...')
                 data = data.replace(old_bytes,new_bytes)
-                old_codes = [bytes.fromhex('713783E2'),bytes.fromhex('223A83E2'),bytes.fromhex('8D3F83E2')]  #0x1C40000+0x22000+0x234  
+                old_codes = [bytes.fromhex('713783E2'),bytes.fromhex('223A83E2'),bytes.fromhex('8D3F83E2')]  #0x1C40000+0x22000+0x234
                 new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  #0x03DD3397 = 0x3397|0x00DD0000|0x03000000
                 data =  replace_chunks(old_codes, new_codes, data,name)
 
@@ -93,13 +93,13 @@ def patch_bzimage(data:bytes,key_dict:dict):
     initramfs = vmlinux[cpio_offset1:]
     cpio_offset2 = initramfs.index(CPIO_FOOTER_MAGIC)+len(CPIO_FOOTER_MAGIC)
     initramfs = initramfs[:cpio_offset2]
-    new_initramfs = initramfs       
+    new_initramfs = initramfs
     for old_public_key,new_public_key in key_dict.items():
         new_initramfs = replace_key(old_public_key,new_public_key,new_initramfs,'initramfs')
     new_vmlinux = vmlinux.replace(initramfs,new_initramfs)
     new_vmlinux_xz = lzma.compress(new_vmlinux,check=lzma.CHECK_CRC32,filters=[
             {"id": lzma.FILTER_X86},
-            {"id": lzma.FILTER_LZMA2, 
+            {"id": lzma.FILTER_LZMA2,
              "preset": 9 | lzma.PRESET_EXTREME,
              'dict_size': 32*1024*1024,
               "lc": 4,"lp": 0, "pb": 0,
@@ -120,7 +120,7 @@ def patch_bzimage(data:bytes,key_dict:dict):
 
 def patch_initrd_xz(initrd_xz:bytes,key_dict:dict,ljust=True):
     initrd = lzma.decompress(initrd_xz)
-    new_initrd = initrd  
+    new_initrd = initrd
     for old_public_key,new_public_key in key_dict.items():
         new_initrd = replace_key(old_public_key,new_public_key,new_initrd,'initrd')
     preset = 6
@@ -142,7 +142,7 @@ def patch_initrd_xz(initrd_xz:bytes,key_dict:dict,ljust=True):
                                 "mf":lzma.MF_BT4,
                             }])
         print(f'initrd xz new size:{len(new_initrd_xz)},old size:{len(initrd_xz)}')
-    assert len(new_initrd_xz) <= len(initrd_xz),'new initrd xz size is too big'        
+    assert len(new_initrd_xz) <= len(initrd_xz),'new initrd xz size is too big'
     if ljust:
         print(f'ljust size:{len(initrd_xz)-len(new_initrd_xz)}')
         new_initrd_xz = new_initrd_xz.ljust(len(initrd_xz),b'\0')
@@ -161,7 +161,7 @@ def find_7zXZ_data(data:bytes):
         offset2 = offset2 + _data.index(b'\x00\x00\x00\x00\x01\x59\x5A') + 7
         _data = _data[offset2:]
     print(f'found 7zXZ data offset:{offset1} size:{offset2-offset1}')
-    return data[offset1:offset2] 
+    return data[offset1:offset2]
 
 def patch_elf(data: bytes,key_dict:dict):
     initrd_xz = find_7zXZ_data(data)
@@ -174,7 +174,7 @@ def patch_pe(data: bytes,key_dict:dict):
     initrd_xz_offset = vmlinux.index(b'\xFD7zXZ\x00\x00\x01')
     initrd_xz_size = vmlinux[initrd_xz_offset:].index(b'\x00\x00\x00\x00\x01\x59\x5A') + 7
     initrd_xz = vmlinux[initrd_xz_offset:initrd_xz_offset+initrd_xz_size]
-    new_initrd_xz = patch_initrd_xz(initrd_xz,key_dict)  
+    new_initrd_xz = patch_initrd_xz(initrd_xz,key_dict)
     new_vmlinux = vmlinux.replace(initrd_xz,new_initrd_xz)
     new_vmlinux_xz = lzma.compress(new_vmlinux,check=lzma.CHECK_CRC32,filters=[{"id": lzma.FILTER_LZMA2, "preset": 9,}] )
     assert len(new_vmlinux_xz) <= len(vmlinux_xz),'new vmlinux xz size is too big'
@@ -348,7 +348,7 @@ def patch_loader(loader_file):
     except ImportError as e:
         print(e)
         print("loader module import failed. cannot run patch_loader.py")
-        
+
 def patch_squashfs(path,key_dict):
     url_replacements = {
         os.environ.get('MIKRO_LICENCE_URL', '').encode(): os.environ.get('CUSTOM_LICENCE_URL', '').encode(),
@@ -398,7 +398,7 @@ def patch_squashfs(path,key_dict):
             file_path  = os.path.join(root,filename)
             if not os.path.isfile(file_path):
                 continue
-  
+
             modified = False
             with open(file_path, 'rb') as f:
                 data = f.read()
@@ -414,7 +414,7 @@ def patch_squashfs(path,key_dict):
                     print(f'{file_path} url patched {old_url.decode()[:7]}...')
                     data = data.replace(old_url,new_url)
                     modified = True
-                    
+
             if filename == 'licupgr':
                 for old_url,new_url in renew_replacements.items():
                     if old_url in data:
@@ -425,7 +425,7 @@ def patch_squashfs(path,key_dict):
             if modified:
                 with open(file_path, 'wb') as f:
                     f.write(data)
-                    
+
 def run_shell_command(command):
     process = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return process.stdout, process.stderr
@@ -447,14 +447,14 @@ def patch_npk_package(package,key_dict):
             run_shell_command(f"unsquashfs -d {extract_dir} {squashfs_file}")
             patch_squashfs(extract_dir,key_dict)
             logo = os.path.join(extract_dir,"nova/lib/console/logo.txt")
-            run_shell_command(f"sed -i '1d' {logo}") 
+            run_shell_command(f"sed -i '1d' {logo}")
             print(f"pack {extract_dir} ...")
             run_shell_command(f"mksquashfs {extract_dir} {squashfs_file} -no-recovery -noappend -exit-on-error -quiet -comp xz -no-xattrs -b 256k -all-root")
             with open(squashfs_file,'rb') as f:
                 package[NpkPartID.SQUASHFS].data = f.read()
 
 def patch_npk_file(key_dict,kcdsa_private_key,eddsa_private_key,input_file,output_file=None):
-    npk = NovaPackage.load(input_file)   
+    npk = NovaPackage.load(input_file)
     if len(npk._packages) > 0:
         for package in npk._packages:
             patch_npk_package(package,key_dict)
@@ -501,6 +501,3 @@ if __name__ == '__main__':
         patch_netinstall(key_dict,args.input,args.output)
     else:
         parser.print_help()
-
-
-    

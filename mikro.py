@@ -172,7 +172,7 @@ def mikro_kcdsa_sign(data:bytes,private_key:bytes)->bytes:
         nonce_hash = mikro_sha256(Tools.inttobytes_le(nonce,32))
         data_hash = bytearray(mikro_sha256(data))
         for i in range(16):
-            data_hash[8+i] ^= nonce_hash[i] 
+            data_hash[8+i] ^= nonce_hash[i]
         data_hash[0] &= 0xF8
         data_hash[31] &= 0x7F
         data_hash[31] |= 0x40
@@ -201,7 +201,7 @@ def mikro_kcdsa_verify(data:bytes, signature:bytes, public_key:bytes)->bool:
     data_hash[31] |= 0x40
     data_hash = Tools.bytestoint_le(data_hash)
     for public_key in public_keys:
-        nonce = int((public_key * signature + curve.G * data_hash).x) 
+        nonce = int((public_key * signature + curve.G * data_hash).x)
         if mikro_sha256(Tools.inttobytes_le(nonce,32))[:len(nonce_hash)] == nonce_hash:
             return True
     return False
