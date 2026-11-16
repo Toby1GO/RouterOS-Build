@@ -1,0 +1,21 @@
+{
+  "version": "7.25.1",
+  "architecture": "x86",
+  "runtime_verified": false,
+  "source_sha256": {
+    "mikrotik-7.25.1.iso": "c639a8971e90432bd6972f54694ced222d71e47213f88e7c9af14a33c2b27480",
+    "install-image-7.25.1.img": "c31412a5626ca617bd25d5cf6daa93ec7ea6ae7e9b21048e7911eb190cca0eb3"
+  },
+  "filesystem_changes": [
+    "./bndl/ppp/nova/bin/ppp",
+    "./nova/bin/installer",
+    "./nova/bin/keyman",
+    "./nova/bin/loader",
+    "./nova/bin/mode",
+    "./nova/bin/net",
+    "./nova/bin/sys2"
+  ],
+  "npks_verified": 12,
+  "iso_img_readback_verified": true,
+  "note": "Static checks passed; new versions still require boot and activation testing."
+}

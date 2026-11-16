@@ -1,0 +1,2 @@
+# Build dependency only. The target computer does not need Python or pip.
+PyInstaller==6.22.3

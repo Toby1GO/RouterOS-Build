@@ -1,0 +1,96 @@
+name: Build and release RouterOS
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'RouterOS 7 version; blank resolves selected channel'
+        required: false
+        default: ''
+        type: string
+      channel:
+        description: 'Official update channel'
+        type: choice
+        default: stable
+        options: [stable, long-term, testing, development]
+      release:
+        description: 'Publish a private repository Release after all checks pass'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: routeros-release
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools-ng
+          python -m pip install -r requirements.txt
+      - name: Resolve official version
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          version=$(python scripts/build_routeros.py --resolve-only --version "$REQUESTED_VERSION" --channel "$CHANNEL")
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: Build and verify ISO, installer IMG and NPKs
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
+          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
+          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
+        run: python scripts/build_routeros.py --version "$VERSION"
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeros-${{ steps.version.outputs.value }}
+          path: publish/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Build summary
+        run: |
+          echo 'Static signature, filesystem, ISO and IMG readback checks passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'New versions still require boot and activation testing.' >> "$GITHUB_STEP_SUMMARY"
+          cat publish/build.json >> "$GITHUB_STEP_SUMMARY"
+  release:
+    if: inputs.release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: routeros-${{ needs.build.outputs.version }}
+          path: publish
+      - name: Publish immutable build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          cat > notes.md <<'NOTES'
+          Custom RouterOS x86 build using this repository's signing keys.
+          Includes ISO, installer IMG, NPKs, build manifest and SHA256 checksums.
+          Static verification passed; boot and activation on the target device remain to be tested.
+          This installer IMG is not a CHR system disk. Activate using the existing matching key generator.
+          NOTES
+          tag="routeros-${VERSION}-${RUN_ID}-${RUN_ATTEMPT}"
+          gh release create "$tag" publish/* --target "$SOURCE_SHA" --title "RouterOS $VERSION (x86)" --notes-file notes.md
