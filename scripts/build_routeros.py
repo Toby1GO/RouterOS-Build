@@ -17,7 +17,7 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import pycdlib
-from license import read_keys, hex_key, public_from_private
+from signing import read_keys, hex_key, public_from_private
 from npk import NovaPackage, NpkPartID, NpkFileContainer
 from patch import replace_key, patch_kernel
 from img import Fat16Image

@@ -1,61 +1,49 @@
 # RouterOS 私有构建
 
-手动运行 GitHub Actions，从 MikroTik 官方下载 RouterOS 7 x86，生成使用现有自有密钥的 ISO、安装 IMG 和 NPK，再发布到本私有仓库的 Release。
+Actions → **Build and release RouterOS** → **Run workflow**，填写版本并保持 `release` 勾选。
+完成后到 Releases，按下载表选择安装镜像或 CHR 磁盘。Windows 激活器及其编译文件仅保留本地，不再上传。
 
-## 一键构建
+## 下载选择
 
-1. 打开 Actions → **Build and release RouterOS** → **Run workflow**。
-2. `version` 填版本号（例如 `7.25.1`）；留空时读取所选官方频道最新版本，默认 stable。
-3. 保持 `release` 勾选。任务全部成功后，在 Releases 下载镜像、NPK、`build.json` 和 `SHA256SUMS`。
-4. 这是 x86 安装镜像，IMG 不是 CHR 系统盘。读取安装后的 Software ID，使用原有匹配密钥的生成器手动生成授权。
+| 使用方式 | 文件 |
+| --- | --- |
+| 安装普通 x86 RouterOS | mikrotik-版本.iso |
+| 写盘安装普通 RouterOS | install-image-版本.img.zip（不是 CHR） |
+| 升级已安装的自定义 RouterOS | routeros-版本.npk |
+| 额外功能包 | all-packages-x86-版本.zip |
+| CHR 通用磁盘 | chr-版本-uefi.img.zip / chr-版本-legacy-bios.img.zip |
+| PVE / QEMU / KVM | 对应 CHR qcow2.zip |
+| VMware | 对应 CHR vmdk.zip |
+| VirtualBox | 对应 CHR vdi.zip |
+| Hyper-V 第一代 / 第二代 | Legacy vhd.zip / UEFI vhdx.zip |
 
-每次构建使用唯一 Release 标签，不覆盖旧版本。没有定时任务，只有手动触发。
-工作流会验证官方源包签名、自有签名、SquashFS 内容和元数据、ISO 布局、IMG 读回和内核 CRC。
-新版 ELF、内核或镜像布局不兼容时停止，不发布失败输出。自动静态校验不能代替新版本的启动、登录和激活测试。
-已在本地和 GitHub Ubuntu runner 用官方 7.25.1 完成端到端构建，并成功自动发布 Release；新的结构定位实现仍需目标设备启动验证。
+CHR 两版系统分区相同，启动分区分别为 ext2（Legacy）和 FAT16（UEFI），不是简单改名。
+UEFI 需要关闭 Secure Boot。本地 Renew 沿用账号 `loulan`、密码 `loulan`、等级 `p-unlimited`。
 
-## Windows 生成器
+**CHR 本地 Renew 目前仅适配 7.25.1。** 新版内部地址和 keyman 哈希不同会停止，必须适配并验证后才可发布；不能保证任意未来版本直接修补成功。
+普通 x86 部分按 ELF 结构定位，仍会拒绝不兼容的内核或镜像布局。所有构建需要通过签名、文件系统、镜像读回、指令模拟和磁盘格式比较检查才发布。静态校验不能代替新构建的整机启动测试。
+没有定时任务；每次手动运行生成独立 Release，不覆盖旧产物。
 
-Actions → **Build Windows key generator** 可构建并自检便携 ZIP，从该次运行的 Artifacts 下载。
-云端打包与独立自检已通过。完整解压后运行 EXE，不需要额外安装 Python。该包包含许可证私钥，可被提取；只提供给可信使用者。
-本地现成便携包保存在 `releases-local/`，不进入 Git 历史。参见 [便携版说明](README-portable.md)。
+## 构建密钥
 
-## 密钥
-
-仓库需要四个 Actions Secrets（本次初始化会从本地现有密钥配置）：
-
-- `CUSTOM_LICENSE_PRIVATE_KEY`
-- `CUSTOM_LICENSE_PUBLIC_KEY`
-- `CUSTOM_NPK_SIGN_PRIVATE_KEY`
-- `CUSTOM_NPK_SIGN_PUBLIC_KEY`
-
-每个值为 64 位十六进制文本。保留现有密钥以匹配已安装镜像，不要随意更换。
-`.private/signing.env`、CLI 登录配置、设备授权文件都被忽略，不提交到 Git。
-固件 Release 只包含公钥；Windows 生成器 Artifact 则内置许可证私钥。
+使用仓库现有四个 Actions Secrets：`CUSTOM_LICENSE_PRIVATE_KEY`、`CUSTOM_LICENSE_PUBLIC_KEY`、`CUSTOM_NPK_SIGN_PRIVATE_KEY`、`CUSTOM_NPK_SIGN_PUBLIC_KEY`。
+本地 `.private/` 始终忽略。固件内只有公钥和已签好的 CHR 证书，不内置签名私钥。
+保留现有密钥，不要随意旋转，以免与已安装镜像不匹配。
 
 ## 本地构建
 
-推荐 Ubuntu 24.04、Python 3.12：
+Ubuntu 24.04、Python 3.12：
 
 ```bash
-sudo apt-get install squashfs-tools-ng
+sudo apt-get install squashfs-tools-ng qemu-utils
 python -m pip install -r requirements.txt
 python scripts/build_routeros.py --version 7.25.1
+python scripts/build_chr.py --version 7.25.1
 ```
 
-默认从 `.private/signing.env` 读取密钥，也支持同名环境变量。
-原始文件缓存于 `downloads/`，中间文件在 `build/routeros/`，发布产物在 `publish/`。
-重复构建时使用新的 `--output-dir`，避免覆盖旧输出。
-Windows 构建生成器：`python -m pip install -r requirements-build.txt`，然后运行 `./build_license_gui.ps1`。
+默认从 `.private/signing.env` 读取密钥，也可使用同名环境变量。
+源码：`scripts/` 和根目录底层 NPK/密码模块；原始文件：`downloads/`；中间产物：`build/`；发布输出：`publish/`。
+本地激活程序、历史镜像、分析记录和工具位于忽略目录中，不会上传。
 
-## 项目结构与来源
-
-- `scripts/`：官方下载、结构定位、镜像构建、结果校验。
-- 根目录 Python 文件：NPK、密码算法、授权生成器和现有底层工具。
-- `toyecc/`：上游椭圆曲线实现，保留其许可证头。
-- `docs/`：清理记录和已验证版本的说明。
-- `.local-archive/`、`.local-tools/`、`releases-local/`：仅本地保留的历史数据，不上传。
-
-基于 [elseif/MikroTikPatch](https://github.com/elseif/MikroTikPatch) 和本地后续修改。
-根项目保留原 LICENSE；toyecc 文件头另有 GPLv3 条款，详见源文件。
-原 loader 修补逻辑会让 loader 的导入 memcmp 返回相等，影响该导入入口的所有比较；本构建继承此既有行为。
+基于 [elseif/MikroTikPatch](https://github.com/elseif/MikroTikPatch) 和本地修改；保留原 LICENSE 及 toyecc 的 GPLv3 文件头。
+现有 loader 补丁使其导入 memcmp 返回相等，沿用已有行为。

@@ -26,3 +26,14 @@ RouterOSKeygen*/
 *.log
 *.tar
 *.sfs
+
+# Local Windows activation tooling
+/license_gui.py
+/license_gui_launcher.py
+/build_license_gui.py
+/build_license_gui.ps1
+/requirements-build.txt
+/README-portable.md
+/.github/workflows/windows-keygen.yml
+/license.py
+/chr_license.py
