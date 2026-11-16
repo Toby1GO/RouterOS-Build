@@ -18,3 +18,9 @@
 进一步删除可重新生成的 TAR、SquashFS、NPK 和 vmlinux 中间文件约 1200.3 MiB，以及 build 缓存约 1081.2 MiB，共约 2.23 GiB。删除清单位于本地 `.local-archive/deleted-generated-files.json`。
 
 云端验证：固件 Actions 43821177264 成功，发布 routeros-7.25.1-43821177264-1；Windows Actions 43821543594 成功，便携 ZIP 自检通过。仓库可见性已核实为 PRIVATE。
+
+## 后续调整
+
+按用户要求，Windows GUI、编译配置、激活 CLI 和 Windows Actions 已从当前仓库跟踪移除，本地文件保留；GitHub 上的 Windows Artifact 与两次运行记录已删除。现有 Git 历史未重写。固件所需密钥读取、签名及 CHR 内置证书逻辑改为 scripts 内部模块。
+
+CHR 沿用 loulan/loulan 本地 Renew；7.25.1 的 Legacy/UEFI 实际启动分区、模拟校验和多格式转换已接入工作流。未知版本停止，不能直接沿用固定内部地址。

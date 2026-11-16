@@ -41,7 +41,7 @@ def main():
     def link(name):
         if not (out/name).is_file():raise ValueError('Release table points to missing asset: '+name)
         return f'[{name}]({base}{name})'
-    text=f'''架构：`x86 / x86_64`  ·  版本：`{ver}`
+    text=f'''架构：`x86 / x86_64`  ·  版本：`{ver}`<br>
 构建时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
 
 ### RouterOS 安装与升级
