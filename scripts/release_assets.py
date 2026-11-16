@@ -2,6 +2,7 @@
 import argparse,hashlib,json,os,subprocess,zipfile
 from pathlib import Path
 from datetime import datetime,timezone
+from stable_version import resolve_version
 
 
 def zipped(source):
@@ -14,8 +15,8 @@ def zipped(source):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--version',required=True);p.add_argument('--output-dir',type=Path,default=Path('publish'));p.add_argument('--channel',default='stable');a=p.parse_args()
-    out=a.output_dir;ver=a.version
+    p=argparse.ArgumentParser();p.add_argument('--version',required=True);p.add_argument('--output-dir',type=Path,default=Path('publish'));a=p.parse_args()
+    out=a.output_dir;ver=resolve_version(a.version)
     # Stable human-facing file names; the release tag distinguishes rebuilds.
     (out/f'mikrotik-{ver}-custom.iso').rename(out/f'mikrotik-{ver}.iso')
     zipped(out/f'install-image-{ver}-custom.img').rename(out/f'install-image-{ver}.img.zip')
@@ -41,7 +42,7 @@ def main():
     def link(name):
         if not (out/name).is_file():raise ValueError('Release table points to missing asset: '+name)
         return f'[{name}]({base}{name})'
-    text=f'''架构：`x86 / x86_64`  ·  版本：`{ver}`<br>
+    text=f'''架构：`x86 / x86_64`  ·  版本：`{ver}`  ·  频道：`stable`<br>
 构建时间：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
 
 ### RouterOS 安装与升级

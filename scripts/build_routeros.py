@@ -24,6 +24,7 @@ from img import Fat16Image
 from image_layout import update_root_file
 from loader_patch import patch_loader
 from mikro import mikro_eddsa_verify
+from stable_version import version, resolve_version
 
 OFFICIAL_LICENSE = bytes.fromhex('8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32')
 OFFICIAL_NPK = bytes.fromhex('C293CED638A2A33C681FC8DE98EE26C54EADC5390C2DFCE197D35C83C416CF59')
@@ -35,20 +36,6 @@ def verify_official(package):
     sig = package[NpkPartID.SIGNATURE].data
     return (len(sig) == 132 and sig[:20] == package.get_digest(hashlib.sha1())
             and mikro_eddsa_verify(package.get_digest(hashlib.sha256()), sig[68:132], OFFICIAL_NPK))
-
-
-def version(value):
-    if not re.fullmatch(r'7\.\d+(?:\.\d+)?(?:(?:beta|rc)\d+)?', value):
-        raise ValueError('Expected RouterOS 7 version, e.g. 7.25.1')
-    return value
-
-
-def resolve_version(value, channel):
-    if value:
-        return version(value)
-    with urllib.request.urlopen('https://upgrade.mikrotik.com/routeros/upgrade.json', timeout=60) as response:
-        data = json.load(response)
-    return version(data['upgradePaths']['NEWESTa7.' + channel]['version'])
 
 
 def download(url, path):
@@ -138,14 +125,13 @@ def patch_filesystem(blob, pairs, work):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', default='')
-    parser.add_argument('--channel', choices=['stable','long-term','testing','development'], default='stable')
     parser.add_argument('--resolve-only', action='store_true')
     parser.add_argument('--keys', type=Path, default=ROOT/'.private/signing.env')
     parser.add_argument('--source-dir', type=Path, default=ROOT/'downloads')
     parser.add_argument('--output-dir', type=Path, default=ROOT/'publish')
     parser.add_argument('--work-dir', type=Path, default=ROOT/'build/routeros')
     args = parser.parse_args()
-    ver = resolve_version(args.version, args.channel)
+    ver = resolve_version(args.version)
     if args.resolve_only:
         print(ver)
         return
@@ -251,7 +237,7 @@ def main():
     after = {entry['path']: actual.read(entry) for entry in actual.files}
     if before.keys() != after.keys() or any(blob != image_changes.get(name,before[name]) for name,blob in after.items()):
         raise ValueError('IMG readback mismatch')
-    report = {'version':ver,'architecture':'x86','runtime_verified':False,'source_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (source_iso,source_img)},'filesystem_changes':changes,'npks_verified':len(packages),'iso_img_readback_verified':True,'note':'Static checks passed; new versions still require boot and activation testing.'}
+    report = {'version':ver,'channel':'stable','architecture':'x86','runtime_verified':False,'source_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (source_iso,source_img)},'filesystem_changes':changes,'npks_verified':len(packages),'iso_img_readback_verified':True,'note':'Static checks passed; new versions still require boot and activation testing.'}
     (out/'build.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
     artifacts = sorted(p for p in out.iterdir() if p.is_file() and p.name != 'SHA256SUMS')
     (out/'SHA256SUMS').write_text(''.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in artifacts),encoding='ascii')

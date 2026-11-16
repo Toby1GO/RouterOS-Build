@@ -3,15 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'RouterOS 7 version; blank resolves selected channel'
+        description: 'Official current stable version; blank selects latest stable'
         required: false
         default: ''
         type: string
-      channel:
-        description: 'Official update channel'
-        type: choice
-        default: stable
-        options: [stable, long-term, testing, development]
       release:
         description: 'Publish a private repository Release after all checks pass'
         type: boolean
@@ -42,9 +37,8 @@ jobs:
         id: version
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
-          CHANNEL: ${{ inputs.channel }}
         run: |
-          version=$(python scripts/build_routeros.py --resolve-only --version "$REQUESTED_VERSION" --channel "$CHANNEL")
+          version=$(python scripts/build_routeros.py --resolve-only --version "$REQUESTED_VERSION")
           echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Build and verify ISO, installer IMG and NPKs
         env:
@@ -71,8 +65,7 @@ jobs:
       - name: Package virtual disks and download table
         env:
           VERSION: ${{ steps.version.outputs.value }}
-          CHANNEL: ${{ inputs.channel }}
-        run: python scripts/release_assets.py --version "$VERSION" --channel "$CHANNEL"
+        run: python scripts/release_assets.py --version "$VERSION"
       - name: Upload verified release assets
         uses: actions/upload-artifact@v4
         with:
@@ -108,4 +101,4 @@ jobs:
           mv publish/RELEASE.md notes.md
           tag="routeros-${VERSION}-${RUN_ID}-${RUN_ATTEMPT}"
           gh release create "$tag" publish/* --target "$SOURCE_SHA" --title "RouterOS $VERSION" --notes-file notes.md --draft
-          gh release edit "$tag" --draft=false
+          gh release edit "$tag" --draft=false --prerelease=false

@@ -1,6 +1,7 @@
 # RouterOS 私有构建
 
-Actions → **Build and release RouterOS** → **Run workflow**，填写版本并保持 `release` 勾选。
+Actions → **Build and release RouterOS** → **Run workflow**，版本留空获取官方最新 **stable**，保持 `release` 勾选。
+工作流仅构建和发布 stable；没有开发版、测试版或 long-term 频道选项。手动填写版本时必须等于官方当前 stable（beta/rc 及其他版本会被拒绝）；打包发布前再次校验频道。
 完成后到 Releases，按下载表选择安装镜像或 CHR 磁盘。Windows 激活器及其编译文件仅保留本地，不再上传。
 
 ## 下载选择
