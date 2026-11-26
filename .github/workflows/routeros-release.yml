@@ -39,6 +39,7 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           version=$(python scripts/build_routeros.py --resolve-only --version "$REQUESTED_VERSION")
+          PYTHONPATH=scripts python -c 'import sys; from chr_profiles import profile_for; profile_for(sys.argv[1])' "$version"
           echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Build and verify ISO, installer IMG and NPKs
         env:
@@ -49,6 +50,7 @@ jobs:
           CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
         run: |
           python scripts/build_routeros.py --version "$VERSION"
+          python tests/check_chr_profile.py "$VERSION"
           python scripts/build_chr.py --version "$VERSION"
       - name: Emulate patched loader entry
         env:

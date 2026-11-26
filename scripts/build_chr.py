@@ -6,6 +6,7 @@ sys.path.insert(0,str(ROOT))
 from build_routeros import download, version, squash_tool, verify_official
 from signing import read_keys, hex_key
 from chr_certificate import generate_chr
+from chr_profiles import profile_for
 from patch_chr_local_renew import patch_keyman
 from check_chr_local_renew import run_checks
 from chr_layout import partitions, replace_ext_file, fat16_boot
@@ -23,7 +24,7 @@ def main():
     p.add_argument('--keys',type=Path,default=ROOT/'.private/signing.env')
     a=p.parse_args();ver=version(a.version)
     # The renew hook uses inspected internal ABI addresses; do not apply to unknown versions.
-    if ver!='7.25.1':raise ValueError('CHR local Renew currently supports 7.25.1 only; adapt and validate the keyman hook for this version before publishing CHR')
+    profile=profile_for(ver)
     work=a.work_dir.resolve()/ver;out=a.output_dir.resolve();src=a.source_dir.resolve()
     src.mkdir(parents=True,exist_ok=True)
     chrwork=work/'chr';chrwork.mkdir(exist_ok=True)
@@ -36,7 +37,7 @@ def main():
             if len(names)!=1:raise ValueError('Missing CHR source image')
             disk.write_bytes(z.read(names[0]))
     base=disk.read_bytes()
-    if hashlib.sha256(base).hexdigest()!='42ce7e8bbcd07d3054bc1c7309540ef621e4bbead90b19defab34fccbba123af':raise ValueError('Unrecognized official CHR baseline')
+    if hashlib.sha256(base).hexdigest()!=profile['disk_sha256']:raise ValueError('Unrecognized official CHR baseline')
     parts=list(partitions(base))
     if [x[0] for x in parts]!=['RouterOS Boot','RouterOS']:raise ValueError('Unexpected CHR partitions')
     _,bo,bs=parts[0];_,so,ss=parts[1]
@@ -47,10 +48,10 @@ def main():
     cert=generate_chr('AAAAAAAAAAA',keys['CUSTOM_LICENSE_PRIVATE_KEY'],0xffffffff,3)
     with tarfile.open(work/'readback.tar') as source:
         keyman=source.extractfile('./nova/bin/keyman').read()
-    patched,_=patch_keyman(keyman,cert,keys['CUSTOM_LICENSE_PUBLIC_KEY'])
+    patched,_=patch_keyman(keyman,cert,keys['CUSTOM_LICENSE_PUBLIC_KEY'],ver)
     for name in ('CUSTOM_LICENSE_PRIVATE_KEY','CUSTOM_NPK_SIGN_PRIVATE_KEY'):
         if keys[name] in patched or keys[name].hex().encode() in patched:raise ValueError('Unexpected private key in firmware')
-    emulation=run_checks(patched,base)
+    emulation=run_checks(patched,base,ver)
     with tarfile.open(work/'readback.tar') as source,tarfile.open(chrwork/'system.tar','w') as target:
         for member in source:
             if not member.isfile():target.addfile(member);continue

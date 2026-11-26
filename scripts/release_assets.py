@@ -70,7 +70,7 @@ CHR 本地 Renew：账号 `loulan`，密码 `loulan`，等级 `p-unlimited`。UE
 <summary>校验与构建说明</summary>
 
 固件签名、镜像读回、本地 Renew 指令模拟及虚拟磁盘格式转换校验通过。新构建尚未做整机启动测试。
-CHR 本地 Renew 补丁当前适配 7.25.1，其他版本须适配后才能发布。
+CHR 本地 Renew 补丁当前适配 7.25.1、7.25.2，其他版本须适配后才能发布。
 Windows 激活工具仅保留在本地，不随仓库或 Release 发布。
 
 '''

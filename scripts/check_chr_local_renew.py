@@ -9,12 +9,14 @@ import struct
 import sys
 from pathlib import Path
 from patch_chr_local_renew import ROOT, BASE, HOOK, CERT
+from chr_profiles import profile_for, plt_imports
 from elftools.elf.elffile import ELFFile
 from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
 from unicorn.x86_const import *
 
 
-def exercise(data, account='loulan', password='loulan', fault=None, disk=None):
+def exercise(data, account='loulan', password='loulan', fault=None, disk=None, version='7.25.1'):
+    profile = profile_for(version)
     elf = ELFFile(io.BytesIO(data))
     u = Uc(UC_ARCH_X86, UC_MODE_32)
     u.mem_map(0x8048000, 0x20000)
@@ -80,7 +82,10 @@ def exercise(data, account='loulan', password='loulan', fault=None, disk=None):
             elif name=='isupper': value=int(65<=a<=90)
             elif name=='islower': value=int(97<=a<=122)
             elif name=='_ZN6string6assignEPKc':
-                state['status' if a==0x200654 else 'error']=cstring(b).decode();value=a
+                fields = {0x200000+profile['status_offset']: 'status',
+                          0x200000+profile['error_offset']: 'error'}
+                assert a in fields, f'Unexpected status/error field: {a:#x}'
+                state[fields[a]]=cstring(b).decode();value=a
             elif name in ('_ZN2nv7messageC1Ev','_ZN2nv7messageD1Ev'): value=a
             elif name=='_ZN2nv7Handler12notifyChangeEjbPvRKNS_7messageE': calls.append('notify');value=0
             else: raise AssertionError(f'Unexpected import {name}')
@@ -124,7 +129,8 @@ def check_identity(data,disk):
         l=bytes(uc.mem_read(a,n));r=bytes(uc.mem_read(b,n))
         uc.reg_write(UC_X86_REG_EAX,((l>r)-(l<r))&0xffffffff)
         uc.reg_write(UC_X86_REG_ESP,sp+4);uc.reg_write(UC_X86_REG_EIP,ret)
-    u.hook_add(UC_HOOK_CODE,compare,begin=0x804b050,end=0x804b050)
+    memcmp=plt_imports(elf)['memcmp']
+    u.hook_add(UC_HOOK_CODE,compare,begin=memcmp,end=memcmp)
     u.emu_start(0x804f96a,0x210000,count=20000000)
     assert u.reg_read(UC_X86_REG_EIP)==0x210000
     assert u.reg_read(UC_X86_REG_EAX)&255==1
@@ -133,20 +139,20 @@ def check_identity(data,disk):
     return dict(accepted=True,level=level,deadline_raw=deadline)
 
 
-def run_checks(data, baseline):
+def run_checks(data, baseline, version='7.25.1'):
     global BASE_DISK
     BASE_DISK = baseline[:512]
     cases={}
-    cases['correct'],disk=exercise(data)
+    cases['correct'],disk=exercise(data,version=version)
     assert cases['correct']['accepted']
-    cases['repeat'],_=exercise(data,disk=disk)
+    cases['repeat'],_=exercise(data,disk=disk,version=version)
     assert cases['repeat']['accepted']
     for name,kw in [('wrong_password',dict(password='wrong')),('wrong_account',dict(account='other')),
                     ('empty',dict(account='',password='')),('prefix',dict(account='loulanx')),
                     ('case_sensitive',dict(account='Loulan'))]:
-        result,_=exercise(data,**kw);assert not result['accepted'] and not result['calls'];cases[name]=result
+        result,_=exercise(data,version=version,**kw);assert not result['accepted'] and not result['calls'];cases[name]=result
     for fault in ('not_chr','read','write','readback','signature'):
-        result,_=exercise(data,fault=fault);assert not result['accepted'] and 'refresh' not in result['calls'];cases[fault]=result
+        result,_=exercise(data,fault=fault,version=version);assert not result['accepted'] and 'refresh' not in result['calls'];cases[fault]=result
     cases['original_identity_validator']=check_identity(data,disk)
-    return dict(cases=cases,network_calls=0,storage_and_notification_apis_mocked=True,
+    return dict(version=version,cases=cases,network_calls=0,storage_and_notification_apis_mocked=True,
                 keyman_sha256=hashlib.sha256(data).hexdigest())

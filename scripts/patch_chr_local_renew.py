@@ -1,5 +1,6 @@
 """Version-pinned offline CHR renewal experiment; retains original signature checks."""
 import hashlib
+import contextlib
 import io
 import struct
 import sys
@@ -11,6 +12,8 @@ sys.path.insert(0, str(ROOT))
 from elftools.elf.elffile import ELFFile
 from keystone import Ks, KS_ARCH_X86, KS_MODE_32
 from chr_certificate import verify_chr
+from chr_profiles import profile_for, plt_imports
+from patch import replace_key
 
 BASE = 0x8058000
 OFFSET = 0xf000
@@ -21,13 +24,20 @@ BAD_LOGIN = BASE + 0x910
 BAD_DISK = BASE + 0x950
 
 
-def patch_keyman(original, certificate, public):
-    if hashlib.sha256(original).hexdigest() != '05760c2a476f43aa953e9ce314f69cbf9b219c8d236295625de183225fa542f9':
-        raise ValueError('Only the validated 7.25.1 r7 keyman is supported')
+def patch_keyman(original, certificate, public, version='7.25.1'):
+    profile = profile_for(version)
+    # Normalize only the configured public key, so validation is independent of
+    # the builder's signing key without accepting arbitrary code changes.
+    official_public = bytes.fromhex('8E1067E4305FCDC0CFBF95C10F96E5DFE8C49AEF486BD1A4E2E96C27F01E3E32')
+    with contextlib.redirect_stdout(io.StringIO()):
+        normalized = replace_key(public, official_public, original, 'keyman')
+    if hashlib.sha256(normalized).hexdigest() != profile['keyman_sha256']:
+        raise ValueError(f'Unrecognized {version} keyman or mismatched license public key')
     info = verify_chr(certificate, public)
     if (info['system_id'], info['deadline_raw'], info['level']) != ('AAAAAAAAAAA', 0xffffffff, 3):
         raise ValueError('Expected signed permanent CHR level 3 certificate with zero identity')
     elf = ELFFile(io.BytesIO(original))
+    imports = plt_imports(elf)
     def offset(address):
         for seg in elf.iter_segments():
             if seg.header.p_type == 'PT_LOAD' and seg.header.p_vaddr <= address < seg.header.p_vaddr + seg.header.p_filesz:
@@ -99,21 +109,21 @@ def patch_keyman(original, certificate, public):
         lea eax, [ebp-0x418]
         push eax
         push esi
-        call 0x804b050
+        call {imports['memcmp']}
         add esp, 16
         test eax, eax
         jnz bad_disk
         sub esp, 8
         push {EMPTY}
-        lea eax, [ebx+0x654]
+        lea eax, [ebx+{profile['status_offset']}]
         push eax
-        call 0x804b070
+        call {imports['_ZN6string6assignEPKc']}
         add esp, 16
         sub esp, 8
         push {EMPTY}
-        lea eax, [ebx+0x658]
+        lea eax, [ebx+{profile['error_offset']}]
         push eax
-        call 0x804b070
+        call {imports['_ZN6string6assignEPKc']}
         add esp, 16
         mov eax, ebx
         xor edx, edx
@@ -121,7 +131,7 @@ def patch_keyman(original, certificate, public):
         sub esp, 12
         lea esi, [ebp-0x438]
         push esi
-        call 0x804b900
+        call {imports['_ZN2nv7messageC1Ev']}
         add esp, 16
         sub esp, 12
         push esi
@@ -129,11 +139,11 @@ def patch_keyman(original, certificate, public):
         push 0
         push -1
         push ebx
-        call 0x804b780
+        call {imports['_ZN2nv7Handler12notifyChangeEjbPvRKNS_7messageE']}
         add esp, 32
         sub esp, 12
         push esi
-        call 0x804b2b0
+        call {imports['_ZN2nv7messageD1Ev']}
         add esp, 16
         mov eax, 1
         jmp finish
@@ -145,15 +155,15 @@ def patch_keyman(original, certificate, public):
     failure:
         sub esp, 8
         push {EMPTY}
-        lea eax, [ebx+0x654]
+        lea eax, [ebx+{profile['status_offset']}]
         push eax
-        call 0x804b070
+        call {imports['_ZN6string6assignEPKc']}
         add esp, 16
         sub esp, 8
         push esi
-        lea eax, [ebx+0x658]
+        lea eax, [ebx+{profile['error_offset']}]
         push eax
-        call 0x804b070
+        call {imports['_ZN6string6assignEPKc']}
         add esp, 16
         xor eax, eax
     finish:

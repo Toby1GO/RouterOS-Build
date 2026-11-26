@@ -21,7 +21,7 @@ Actions → **Build and release RouterOS** → **Run workflow**，版本留空�
 CHR 两版系统分区相同，启动分区分别为 ext2（Legacy）和 FAT16（UEFI），不是简单改名。
 UEFI 需要关闭 Secure Boot。本地 Renew 沿用账号 `loulan`、密码 `loulan`、等级 `p-unlimited`。
 
-**CHR 本地 Renew 目前仅适配 7.25.1。** 新版内部地址和 keyman 哈希不同会停止，必须适配并验证后才可发布；不能保证任意未来版本直接修补成功。
+**CHR 本地 Renew 已适配 7.25.1、7.25.2。** 每个版本使用独立的镜像哈希、keyman 校验和状态字段配置，导入函数按符号解析。未知版本在工作流版本解析阶段停止，必须适配并验证后才可发布；不能保证任意未来版本直接修补成功。
 普通 x86 部分按 ELF 结构定位，仍会拒绝不兼容的内核或镜像布局。所有构建需要通过签名、文件系统、镜像读回、指令模拟和磁盘格式比较检查才发布。静态校验不能代替新构建的整机启动测试。
 没有定时任务；每次手动运行生成独立 Release，不覆盖旧产物。
 
@@ -38,8 +38,8 @@ Ubuntu 24.04、Python 3.12：
 ```bash
 sudo apt-get install squashfs-tools-ng qemu-utils
 python -m pip install -r requirements.txt
-python scripts/build_routeros.py --version 7.25.1
-python scripts/build_chr.py --version 7.25.1
+python scripts/build_routeros.py --version 7.25.2
+python scripts/build_chr.py --version 7.25.2
 ```
 
 默认从 `.private/signing.env` 读取密钥，也可使用同名环境变量。
